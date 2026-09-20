@@ -1,0 +1,191 @@
+<!DOCTYPE HTML>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<title>HTML5 圖片自由重疊拖放範例 (擴大放置區、窄圖片庫、無邊框原始圖片)</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+  }
+  
+  /* 頂部控制區 (放置 Reset 按鈕) */
+  .controls {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  
+  .reset-btn {
+    padding: 10px 20px;
+    font-size: 16px;
+    color: #fff;
+    background-color: #007BFF;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: background-color 0.2s;
+  }
+  
+  .reset-btn:hover {
+    background-color: #0056b3;
+  }
+
+  .container {
+    display: flex;
+    justify-content: center;
+    gap: 20px; /* 縮小間距讓放置區有更多空間 */
+  }
+  
+  /* 左側：收窄的圖片庫區域 (單一直行) */
+  #gallery-zone {
+    width: 200px; /* 收窄寬度 */
+    min-height: 450px;
+    padding: 15px;
+    border: 3px dashed #888;
+    background-color: #f4f4f4;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column; /* 單一直行排列 */
+    gap: 15px; /* 垂直間距 */
+    align-items: center; /* 圖片居中 */
+  }
+
+  /* 右側：擴大的目標放置區 (畫布) */
+  #target-zone {
+    width: 700px; /* 擴大寬度 */
+    height: 500px; /* 擴大高度 */
+    border: 3px solid #333;
+    border-radius: 10px;
+    position: relative; 
+    overflow: hidden;   
+    background-image: url('https://picsum.photos/id/123/700/500'); /* 配合新尺寸 */
+    background-size: cover;
+    background-position: center;
+  }
+
+  h3 {
+    width: 100%;
+    text-align: center;
+    margin-top: 0;
+    color: #333;
+    pointer-events: none; 
+    text-shadow: 1px 1px 2px white; 
+    position: relative;
+    z-index: 1000;
+  }
+
+  /* ==== 修改後的圖片樣式 (無邊框、無圓角、無陰影) ==== */
+  img.draggable-item {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    cursor: grab;
+    /* 這裡原本有邊框、圓角和陰影，都已移除 */
+    transition: transform 0.1s;
+  }
+  
+  img.draggable-item:active {
+    cursor: grabbing;
+    transform: scale(1.1); 
+  }
+</style>
+
+<script>
+  let highestZIndex = 10; 
+
+  function allowDrop(ev) {
+    ev.preventDefault();
+  }
+
+  function drag(ev) {
+    ev.dataTransfer.setData("text", ev.target.id);
+    
+    const rect = ev.target.getBoundingClientRect();
+    const offsetX = ev.clientX - rect.left;
+    const offsetY = ev.clientY - rect.top;
+    
+    ev.dataTransfer.setData("offsetX", offsetX);
+    ev.dataTransfer.setData("offsetY", offsetY);
+  }
+
+  function drop(ev) {
+    ev.preventDefault();
+    
+    const id = ev.dataTransfer.getData("text");
+    const draggedElement = document.getElementById(id);
+    
+    const offsetX = parseInt(ev.dataTransfer.getData("offsetX"), 10);
+    const offsetY = parseInt(ev.dataTransfer.getData("offsetY"), 10);
+
+    let dropZone = ev.target;
+    while (!dropZone.classList.contains('zone') && dropZone !== document.body) {
+      dropZone = dropZone.parentNode;
+    }
+
+    if (dropZone.id === 'target-zone') {
+      const zoneRect = dropZone.getBoundingClientRect();
+      
+      const x = ev.clientX - zoneRect.left - offsetX;
+      const y = ev.clientY - zoneRect.top - offsetY;
+
+      draggedElement.style.position = 'absolute';
+      draggedElement.style.left = x + 'px';
+      draggedElement.style.top = y + 'px';
+      
+      highestZIndex++;
+      draggedElement.style.zIndex = highestZIndex;
+      
+      dropZone.appendChild(draggedElement);
+      
+    } else if (dropZone.id === 'gallery-zone') {
+      draggedElement.style.position = 'static';
+      dropZone.appendChild(draggedElement);
+    }
+  }
+
+  // Reset 功能 (將所有圖片收回並隨機洗牌)
+  function resetGallery() {
+    const gallery = document.getElementById('gallery-zone');
+    let images = Array.from(document.querySelectorAll('.draggable-item'));
+
+    images.sort(() => Math.random() - 0.5);
+
+    images.forEach(img => {
+      img.style.position = 'static';
+      img.style.left = '';
+      img.style.top = '';
+      img.style.zIndex = '';
+      gallery.appendChild(img);
+    });
+
+    highestZIndex = 10;
+  }
+</script>
+</head>
+<body>
+
+<h2 style="text-align: center;">HTML5 圖片自由重疊拖放範例 (擴大放置區、窄圖片庫、原始圖片無邊框)</h2>
+
+<div class="controls">
+  <button class="reset-btn" onclick="resetGallery()">↺ Reset 圖片庫 (隨機洗牌)</button>
+</div>
+
+<div class="container">
+  <!-- 來源區域 (圖片庫，窄直行) -->
+  <div id="gallery-zone" class="zone" ondrop="drop(event)" ondragover="allowDrop(event)">
+    <h3>圖片庫</h3>
+    <img id="img1" class="draggable-item" src="https://picsum.photos/id/10/100/100" draggable="true" ondragstart="drag(event)">
+    <img id="img2" class="draggable-item" src="https://picsum.photos/id/11/100/100" draggable="true" ondragstart="drag(event)">
+    <img id="img3" class="draggable-item" src="https://picsum.photos/id/12/100/100" draggable="true" ondragstart="drag(event)">
+    <img id="img4" class="draggable-item" src="https://picsum.photos/id/13/100/100" draggable="true" ondragstart="drag(event)">
+    <img id="img5" class="draggable-item" src="https://picsum.photos/id/14/100/100" draggable="true" ondragstart="drag(event)">
+  </div>
+
+  <!-- 目標區域 (自訂背景、擴大的自由畫布) -->
+  <div id="target-zone" class="zone" ondrop="drop(event)" ondragover="allowDrop(event)">
+    <h3>放置區 (可自由重疊)</h3>
+  </div>
+</div>
+
+</body>
+</html>
