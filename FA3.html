@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>環境保護聲檔播放器 - 互動學習</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .glass-card {
+            background: rgba(51, 65, 85, 0.5);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card:hover {
+            border-color: rgba(56, 189, 248, 0.4);
+            transform: translateY(-2px);
+        }
+        .glass-card.active {
+            border-color: #38bdf8;
+            background: rgba(56, 189, 248, 0.12);
+            box-shadow: 0 0 25px rgba(56, 189, 248, 0.2);
+        }
+        .progress-bar-container {
+            cursor: pointer;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(56, 189, 248, 0.3);
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(56, 189, 248, 0.6);
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-100 flex flex-col justify-between selection:bg-sky-500 selection:text-white">
+
+    <!-- Header Navigation -->
+    <header class="w-full border-b border-slate-800/80 glass-panel sticky top-0 z-50">
+        <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-sky-500/20">
+                    <i class="fa-solid font-bold fa-water text-slate-900 text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold bg-gradient-to-r from-sky-400 to-emerald-300 bg-clip-text text-transparent">
+                        環境生態問題討論
+                    </h1>
+                    <p class="text-xs text-slate-400">廣東話語音問題播放與分析</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <button id="ttsToggleBtn" onclick="toggleTtsMode()" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition flex items-center gap-2">
+                    <i class="fa-solid fa-robot text-sky-400"></i>
+                    <span id="ttsModeLabel">TTS 預覽模式</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-5xl mx-auto px-4 py-8 w-full flex-grow flex flex-col md:flex-row gap-8 items-start">
+        
+        <!-- Left Side: Audio Player Control & Visualizer -->
+        <div class="w-full md:w-5/12 glass-panel p-6 rounded-3xl flex flex-col gap-6 border border-slate-700/50 shadow-2xl relative overflow-hidden">
+            <!-- Background Glow -->
+            <div class="absolute -top-24 -left-24 w-48 h-48 bg-sky-500/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-24 -right-24 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+            <!-- Header Info -->
+            <div class="flex flex-col gap-1 text-center items-center">
+                <span class="text-xs font-semibold uppercase tracking-wider text-sky-400 bg-sky-950/60 border border-sky-800/60 px-3 py-1 rounded-full">
+                    現在播放 Playing
+                </span>
+                <h2 id="currentTrackTitle" class="text-lg font-bold text-slate-100 mt-2 h-14 flex items-center justify-center text-center">
+                    請選擇下方課題進行播放
+                </h2>
+                <p id="currentTrackSubtitle" class="text-xs text-slate-400">點擊右側或下方按鈕開始播放</p>
+            </div>
+
+            <!-- Visualizer Canvas -->
+            <div class="relative w-full h-36 bg-slate-900/80 rounded-2xl border border-slate-800 overflow-hidden flex items-center justify-center">
+                <canvas id="visualizer" class="w-full h-full"></canvas>
+                <div id="visualizerPlaceholder" class="absolute flex flex-col items-center justify-center text-slate-500 gap-2">
+                    <i class="fa-solid fa-waveform-lines text-2xl animate-pulse"></i>
+                    <span class="text-xs">準備播放音訊...</span>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="space-y-1">
+                <div class="progress-bar-container w-full h-3 bg-slate-800 rounded-full overflow-hidden relative" id="progressBar" onclick="seekAudio(event)">
+                    <div id="progressFill" class="h-full bg-gradient-to-r from-sky-400 to-emerald-400 w-0 rounded-full transition-all duration-75"></div>
+                </div>
+                <div class="flex justify-between text-xs text-slate-400 font-mono px-0.5">
+                    <span id="currentTime">00:00</span>
+                    <span id="duration">00:00</span>
+                </div>
+            </div>
+
+            <!-- Player Controls -->
+            <div class="flex items-center justify-center gap-6 py-2">
+                <button onclick="skipTime(-5)" class="w-10 h-10 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition active:scale-95" title="快退 5 秒">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
+
+                <button id="mainPlayBtn" onclick="togglePlayPause()" class="w-16 h-16 rounded-full bg-gradient-to-tr from-sky-400 to-emerald-400 text-slate-950 font-bold text-2xl flex items-center justify-center shadow-lg shadow-sky-500/30 hover:scale-105 active:scale-95 transition">
+                    <i id="mainPlayIcon" class="fa-solid fa-play ml-1"></i>
+                </button>
+
+                <button onclick="skipTime(5)" class="w-10 h-10 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition active:scale-95" title="快進 5 秒">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+            </div>
+
+            <!-- Volume Slider -->
+            <div class="flex items-center gap-3 bg-slate-900/40 px-4 py-2 rounded-xl border border-slate-800">
+                <button id="muteBtn" onclick="toggleMute()" class="text-slate-400 hover:text-sky-400 transition">
+                    <i id="volumeIcon" class="fa-solid fa-volume-high"></i>
+                </button>
+                <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.9" oninput="changeVolume(this.value)" class="w-full accent-sky-400 cursor-pointer h-1.5 bg-slate-700 rounded-lg appearance-none">
+            </div>
+        </div>
+
+        <!-- Right Side: 3 Audio Selection Buttons & MP3 File Uploads -->
+        <div class="w-full md:w-7/12 flex flex-col gap-4">
+            
+            <div class="flex items-center justify-between px-1">
+                <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                    <i class="fa-solid fa-list-check text-sky-400"></i> 問題錄音選單 (3 個課題)
+                </h3>
+                <span class="text-xs text-slate-400" id="sourceTypeTag">目前模式：文字語音 (TTS)</span>
+            </div>
+
+            <!-- Card 1 -->
+            <div id="card-0" onclick="selectTrack(0)" class="glass-card p-5 rounded-2xl cursor-pointer flex flex-col gap-3 group relative overflow-hidden">
+                <div class="flex items-start justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center font-bold text-lg group-hover:bg-sky-500 group-hover:text-slate-950 transition">
+                            01
+                        </div>
+                        <div>
+                            <span class="text-xs text-sky-400 font-medium">問題 一</span>
+                            <h4 class="text-base font-bold text-slate-100 group-hover:text-sky-300 transition">
+                                男孩的行爲正確嗎？
+                            </h4>
+                        </div>
+                    </div>
+                    <button class="w-10 h-10 rounded-full bg-slate-800 text-slate-300 group-hover:bg-sky-400 group-hover:text-slate-950 flex items-center justify-center transition shadow-md">
+                        <i class="card-play-icon fa-solid fa-play ml-0.5"></i>
+                    </button>
+                </div>
+                <!-- File Input for Custom MP3 -->
+                <div class="flex items-center justify-between pt-2 border-t border-slate-700/40 text-xs" onclick="event.stopPropagation()">
+                    <span class="text-slate-400 truncate max-w-[200px]" id="fileName-0">未載入自訂 MP3 檔案</span>
+                    <label class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 cursor-pointer transition flex items-center gap-1">
+                        <i class="fa-solid fa-upload text-slate-400"></i> 匯入 MP3
+                        <input type="file" accept="audio/mp3,audio/*" class="hidden" onchange="handleFileUpload(event, 0)">
+                    </label>
+                </div>
+            </div>
+
+            <!-- Card 2 -->
+            <div id="card-1" onclick="selectTrack(1)" class="glass-card p-5 rounded-2xl cursor-pointer flex flex-col gap-3 group relative overflow-hidden">
+                <div class="flex items-start justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-lg group-hover:bg-emerald-400 group-hover:text-slate-950 transition">
+                            02
+                        </div>
+                        <div>
+                            <span class="text-xs text-emerald-400 font-medium">問題 二</span>
+                            <h4 class="text-base font-bold text-slate-100 group-hover:text-emerald-300 transition">
+                                男孩的行爲會對河流的生物有什麼影響？
+                            </h4>
+                        </div>
+                    </div>
+                    <button class="w-10 h-10 rounded-full bg-slate-800 text-slate-300 group-hover:bg-emerald-400 group-hover:text-slate-950 flex items-center justify-center transition shadow-md">
+                        <i class="card-play-icon fa-solid fa-play ml-0.5"></i>
+                    </button>
+                </div>
+                <!-- File Input for Custom MP3 -->
+                <div class="flex items-center justify-between pt-2 border-t border-slate-700/40 text-xs" onclick="event.stopPropagation()">
+                    <span class="text-slate-400 truncate max-w-[200px]" id="fileName-1">未載入自訂 MP3 檔案</span>
+                    <label class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 cursor-pointer transition flex items-center gap-1">
+                        <i class="fa-solid fa-upload text-slate-400"></i> 匯入 MP3
+                        <input type="file" accept="audio/mp3,audio/*" class="hidden" onchange="handleFileUpload(event, 1)">
+                    </label>
+                </div>
+            </div>
+
+            <!-- Card 3 -->
+            <div id="card-2" onclick="selectTrack(2)" class="glass-card p-5 rounded-2xl cursor-pointer flex flex-col gap-3 group relative overflow-hidden">
+                <div class="flex items-start justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-teal-500/10 border border-teal-500/20 text-teal-400 flex items-center justify-center font-bold text-lg group-hover:bg-teal-400 group-hover:text-slate-950 transition">
+                            03
+                        </div>
+                        <div>
+                            <span class="text-xs text-teal-400 font-medium">問題 三</span>
+                            <h4 class="text-base font-bold text-slate-100 group-hover:text-teal-300 transition">
+                                男孩應該如何處理垃圾？
+                            </h4>
+                        </div>
+                    </div>
+                    <button class="w-10 h-10 rounded-full bg-slate-800 text-slate-300 group-hover:bg-teal-400 group-hover:text-slate-950 flex items-center justify-center transition shadow-md">
+                        <i class="card-play-icon fa-solid fa-play ml-0.5"></i>
+                    </button>
+                </div>
+                <!-- File Input for Custom MP3 -->
+                <div class="flex items-center justify-between pt-2 border-t border-slate-700/40 text-xs" onclick="event.stopPropagation()">
+                    <span class="text-slate-400 truncate max-w-[200px]" id="fileName-2">未載入自訂 MP3 檔案</span>
+                    <label class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 cursor-pointer transition flex items-center gap-1">
+                        <i class="fa-solid fa-upload text-slate-400"></i> 匯入 MP3
+                        <input type="file" accept="audio/mp3,audio/*" class="hidden" onchange="handleFileUpload(event, 2)">
+                    </label>
+                </div>
+            </div>
+
+            <!-- Info Box -->
+            <div class="p-4 rounded-xl bg-slate-800/40 border border-slate-700/40 text-slate-400 text-xs flex items-start gap-3 mt-2">
+                <i class="fa-solid fa-circle-info text-sky-400 text-base mt-0.5"></i>
+                <div class="leading-relaxed">
+                    <strong class="text-slate-200">使用說明：</strong><br>
+                    • 點擊上方三個卡片中的任一項即可立即播放語音問題。<br>
+                    • 如果您有現場錄製的 MP3 聲檔，可以點擊每張卡片右下角的 <strong>「匯入 MP3」</strong> 上傳您的實體音訊檔。
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full border-t border-slate-800/60 py-4 text-center text-xs text-slate-500">
+        <p>© 廣東話環境生態教學多媒體播放器</p>
+    </footer>
+
+    <!-- Audio Logic Script -->
+    <script>
+        // Track Data Configuration
+        const tracks = [
+            {
+                id: 0,
+                title: "男孩的行爲正確嗎？",
+                subtitle: "問題 1：評估行為適當性",
+                customSrc: null,
+                filename: null
+            },
+            {
+                id: 1,
+                title: "男孩的行爲會對河流的生物有什麼影響？",
+                subtitle: "問題 2：探討生態環境影響",
+                customSrc: null,
+                filename: null
+            },
+            {
+                id: 2,
+                title: "男孩應該如何處理垃圾？",
+                subtitle: "問題 3：正確的垃圾處置方法",
+                customSrc: null,
+                filename: null
+            }
+        ];
+
+        // State variables
+        let currentTrackIndex = -1;
+        let isPlaying = false;
+        let useTTSMode = true; // Default fallback mode if no MP3 uploaded
+        let audioObj = new Audio();
+        let synth = window.speechSynthesis;
+        let utterance = null;
+        let ttsProgressInterval = null;
+        let ttsStartTime = 0;
+        let ttsEstimatedDuration = 4; // default estimated duration in seconds for TTS
+
+        // Visualizer Canvas Variables
+        let audioCtx = null;
+        let analyser = null;
+        let source = null;
+        let animationFrameId = null;
+
+        const canvas = document.getElementById('visualizer');
+        const canvasCtx = canvas.getContext('2d');
+
+        // Set canvas resolution
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Initialize Audio Event Listeners
+        audioObj.addEventListener('timeupdate', updateProgress);
+        audioObj.addEventListener('ended', onTrackEnded);
+        audioObj.addEventListener('loadedmetadata', () => {
+            document.getElementById('duration').innerText = formatTime(audioObj.duration);
+        });
+
+        // Track Selection
+        function selectTrack(index) {
+            if (currentTrackIndex === index && isPlaying) {
+                pauseAudio();
+                return;
+            }
+
+            currentTrackIndex = index;
+            const track = tracks[index];
+
+            // Update UI
+            document.getElementById('currentTrackTitle').innerText = track.title;
+            document.getElementById('currentTrackSubtitle').innerText = track.subtitle;
+            updateActiveCardUI(index);
+
+            // Determine playback source
+            if (track.customSrc) {
+                playMP3(track.customSrc);
+            } else {
+                playTTS(track.title);
+            }
+        }
+
+        // Play uploaded MP3 File
+        function playMP3(src) {
+            stopTTS();
+            audioObj.src = src;
+            audioObj.volume = parseFloat(document.getElementById('volumeSlider').value);
+            
+            // Setup Web Audio API Visualizer for Audio Tag
+            setupWebAudio();
+
+            audioObj.play().then(() => {
+                isPlaying = true;
+                updatePlayButtonsUI(true);
+                document.getElementById('visualizerPlaceholder').classList.add('hidden');
+                drawVisualizer();
+            }).catch(e => console.error("Audio play error:", e));
+        }
+
+        // Play TTS standard Cantonese speech
+        function playTTS(text) {
+            audioObj.pause();
+            stopTTS();
+
+            if (!('speechSynthesis' in window)) {
+                alert('您的瀏覽器不支援 Speech Synthesis。請匯入 MP3 音訊檔。');
+                return;
+            }
+
+            utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'zh-HK'; // Cantonese locale
+            utterance.rate = 0.9;
+            utterance.volume = parseFloat(document.getElementById('volumeSlider').value);
+
+            // Estimate duration based on word count
+            ttsEstimatedDuration = Math.max(3, text.length * 0.45);
+            document.getElementById('duration').innerText = formatTime(ttsEstimatedDuration);
+            ttsStartTime = Date.now();
+
+            utterance.onstart = () => {
+                isPlaying = true;
+                updatePlayButtonsUI(true);
+                document.getElementById('visualizerPlaceholder').classList.add('hidden');
+                startTtsProgressTracker();
+                drawSimulatedVisualizer();
+            };
+
+            utterance.onend = () => {
+                onTrackEnded();
+            };
+
+            utterance.onerror = () => {
+                onTrackEnded();
+            };
+
+            synth.speak(utterance);
+        }
+
+        // Progress Tracking for TTS Mode
+        function startTtsProgressTracker() {
+            clearInterval(ttsProgressInterval);
+            ttsProgressInterval = setInterval(() => {
+                if (!isPlaying) return;
+                const elapsed = (Date.now() - ttsStartTime) / 1000;
+                const progress = Math.min(elapsed / ttsEstimatedDuration, 1);
+                
+                document.getElementById('progressFill').style.width = `${progress * 100}%`;
+                document.getElementById('currentTime').innerText = formatTime(elapsed);
+
+                if (progress >= 1) {
+                    clearInterval(ttsProgressInterval);
+                }
+            }, 100);
+        }
+
+        function stopTTS() {
+            if (synth.speaking || synth.pending) {
+                synth.cancel();
+            }
+            clearInterval(ttsProgressInterval);
+        }
+
+        // Global Toggle Play / Pause
+        function togglePlayPause() {
+            if (currentTrackIndex === -1) {
+                selectTrack(0);
+                return;
+            }
+
+            if (isPlaying) {
+                pauseAudio();
+            } else {
+                const track = tracks[currentTrackIndex];
+                if (track.customSrc) {
+                    audioObj.play();
+                    isPlaying = true;
+                    updatePlayButtonsUI(true);
+                    drawVisualizer();
+                } else {
+                    playTTS(track.title);
+                }
+            }
+        }
+
+        function pauseAudio() {
+            isPlaying = false;
+            if (tracks[currentTrackIndex]?.customSrc) {
+                audioObj.pause();
+            } else {
+                synth.pause();
+                clearInterval(ttsProgressInterval);
+            }
+            updatePlayButtonsUI(false);
+            cancelAnimationFrame(animationFrameId);
+        }
+
+        function onTrackEnded() {
+            isPlaying = false;
+            updatePlayButtonsUI(false);
+            document.getElementById('progressFill').style.width = '0%';
+            document.getElementById('currentTime').innerText = "00:00";
+            cancelAnimationFrame(animationFrameId);
+            drawEmptyVisualizer();
+            document.getElementById('visualizerPlaceholder').classList.remove('hidden');
+        }
+
+        // Seek function for Audio Progress Bar
+        function seekAudio(e) {
+            if (currentTrackIndex === -1) return;
+            const container = document.getElementById('progressBar');
+            const rect = container.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const width = rect.width;
+            const percentage = clickX / width;
+
+            if (tracks[currentTrackIndex].customSrc && audioObj.duration) {
+                audioObj.currentTime = percentage * audioObj.duration;
+            } else {
+                // Restart TTS for simplicity on seek
+                selectTrack(currentTrackIndex);
+            }
+        }
+
+        function skipTime(seconds) {
+            if (currentTrackIndex === -1) return;
+            if (tracks[currentTrackIndex].customSrc) {
+                audioObj.currentTime = Math.max(0, Math.min(audioObj.duration, audioObj.currentTime + seconds));
+            }
+        }
+
+        function changeVolume(val) {
+            audioObj.volume = val;
+            if (utterance) utterance.volume = val;
+
+            const icon = document.getElementById('volumeIcon');
+            if (val == 0) {
+                icon.className = "fa-solid fa-volume-mute text-red-400";
+            } else if (val < 0.5) {
+                icon.className = "fa-solid fa-volume-low text-sky-400";
+            } else {
+                icon.className = "fa-solid fa-volume-high text-sky-400";
+            }
+        }
+
+        function toggleMute() {
+            const slider = document.getElementById('volumeSlider');
+            if (slider.value > 0) {
+                slider.dataset.oldVal = slider.value;
+                slider.value = 0;
+            } else {
+                slider.value = slider.dataset.oldVal || 0.8;
+            }
+            changeVolume(slider.value);
+        }
+
+        // Custom MP3 Upload Handler
+        function handleFileUpload(event, index) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const objectUrl = URL.createObjectURL(file);
+            tracks[index].customSrc = objectUrl;
+            tracks[index].filename = file.name;
+
+            // Update card label
+            document.getElementById(`fileName-${index}`).innerText = file.name;
+            document.getElementById(`fileName-${index}`).classList.replace('text-slate-400', 'text-emerald-400');
+
+            // Play newly uploaded file
+            selectTrack(index);
+        }
+
+        // Update UI States
+        function updateActiveCardUI(activeIndex) {
+            for (let i = 0; i < 3; i++) {
+                const card = document.getElementById(`card-${i}`);
+                if (!card) continue;
+                const icon = card.querySelector('.card-play-icon');
+                if (i === activeIndex) {
+                    card.classList.add('active');
+                    if (icon) icon.className = "card-play-icon fa-solid fa-pause ml-0.5";
+                } else {
+                    card.classList.remove('active');
+                    if (icon) icon.className = "card-play-icon fa-solid fa-play ml-0.5";
+                }
+            }
+        }
+
+        function updatePlayButtonsUI(playing) {
+            const mainIcon = document.getElementById('mainPlayIcon');
+            if (mainIcon) {
+                mainIcon.className = playing ? "fa-solid fa-pause" : "fa-solid fa-play ml-1";
+            }
+
+            if (currentTrackIndex !== -1) {
+                const activeCard = document.getElementById(`card-${currentTrackIndex}`);
+                if (activeCard) {
+                    const cardIcon = activeCard.querySelector('.card-play-icon');
+                    if (cardIcon) {
+                        cardIcon.className = playing ? "card-play-icon fa-solid fa-pause ml-0.5" : "card-play-icon fa-solid fa-play ml-0.5";
+                    }
+                }
+            }
+        }
+
+        function updateProgress() {
+            if (!tracks[currentTrackIndex]?.customSrc) return;
+            const current = audioObj.currentTime;
+            const total = audioObj.duration || 1;
+            const percentage = (current / total) * 100;
+
+            document.getElementById('progressFill').style.width = `${percentage}%`;
+            document.getElementById('currentTime').innerText = formatTime(current);
+        }
+
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return "00:00";
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function toggleTtsMode() {
+            useTTSMode = !useTTSMode;
+            const label = document.getElementById('ttsModeLabel');
+            const typeTag = document.getElementById('sourceTypeTag');
+
+            if (useTTSMode) {
+                label.innerText = "TTS 預覽模式";
+                typeTag.innerText = "目前模式：文字語音 (TTS)";
+            } else {
+                label.innerText = "MP3 檔案模式";
+                typeTag.innerText = "目前模式：自訂 MP3 檔";
+            }
+        }
+
+        // Audio Visualizer Setup (Web Audio API)
+        function setupWebAudio() {
+            if (audioCtx) return;
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+                analyser = audioCtx.createAnalyser();
+                source = audioCtx.createMediaElementSource(audioObj);
+                source.connect(analyser);
+                analyser.connect(audioCtx.destination);
+                analyser.fftSize = 64;
+            } catch (e) {
+                console.warn("Web Audio API visualizer initialization failed:", e);
+            }
+        }
+
+        function drawVisualizer() {
+            if (!isPlaying) return;
+            animationFrameId = requestAnimationFrame(drawVisualizer);
+
+            if (!analyser) {
+                drawSimulatedVisualizer();
+                return;
+            }
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+
+            canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const barWidth = (canvas.width / bufferLength) * 2.5;
+            let barHeight;
+            let x = 0;
+
+            for (let i = 0; i < bufferLength; i++) {
+                barHeight = (dataArray[i] / 255) * canvas.height * 0.8;
+
+                const gradient = canvasCtx.createLinearGradient(0, canvas.height, 0, 0);
+                gradient.addColorStop(0, '#38bdf8');
+                gradient.addColorStop(1, '#34d399');
+
+                canvasCtx.fillStyle = gradient;
+                canvasCtx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
+
+                x += barWidth;
+            }
+        }
+
+        // Animated Fallback Visualizer for TTS Mode
+        function drawSimulatedVisualizer() {
+            if (!isPlaying) return;
+            animationFrameId = requestAnimationFrame(drawSimulatedVisualizer);
+
+            canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const bars = 30;
+            const barWidth = (canvas.width / bars);
+
+            for (let i = 0; i < bars; i++) {
+                // Generate smooth procedural sine waves
+                const height = Math.abs(Math.sin(Date.now() * 0.005 + i * 0.3) * (canvas.height * 0.7)) + 5;
+
+                const gradient = canvasCtx.createLinearGradient(0, canvas.height, 0, 0);
+                gradient.addColorStop(0, '#38bdf8');
+                gradient.addColorStop(1, '#34d399');
+
+                canvasCtx.fillStyle = gradient;
+                canvasCtx.fillRect(i * barWidth, canvas.height - height, barWidth - 3, height);
+            }
+        }
+
+        function drawEmptyVisualizer() {
+            canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    </script>
+</body>
+</html>
