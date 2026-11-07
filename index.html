@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>語音問答播放器</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 {
+            font-size: 22px;
+            color: #333;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .btn {
+            background: #4a90e2;
+            color: white;
+            border: none;
+            padding: 16px 20px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px rgba(74, 144, 226, 0.2);
+            line-height: 1.4;
+        }
+        .btn:hover {
+            background: #357abd;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(74, 144, 226, 0.3);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .btn.playing {
+            background: #2ecc71;
+            box-shadow: 0 4px 6px rgba(46, 204, 113, 0.3);
+        }
+        .status {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: #666;
+            min-height: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🔊 聽講練習與問題</h1>
+    <div class="btn-group">
+        <button class="btn" onclick="playAudio(0, this)">1. 男孩的行為正確認嗎？</button>
+        <button class="btn" onclick="playAudio(1, this)">2. 男孩的行為會對海洋的生物有什麼影響？</button>
+        <button class="btn" onclick="playAudio(2, this)">3. 男孩應該如何處理垃圾？</button>
+    </div>
+    <div class="status" id="statusText">點擊按鈕播放語音</div>
+</div>
+
+<script>
+    // 內嵌 Base64 音訊資料
+    const audioSources = [
+        "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//70DAAAAAAASNFUAABAAAAG0gAAAAABAAEQAAEAAAAB/7kEQAAAAMZAKL3yAIAx9wY0v3gQAID96739AACC/cu9/QAAgP3rvf0AAIsgAAAJiWlpbW3+tX///9gAAABjS6gL4P4D+gP/////n///5gABl4yN/7kEQKAAAZ647GMAAAA0Vx5d72AAaKssqP/UACiRZXgf+4ACw22/7kEQNAAASZg1+9pAABkjAsJ72gAY80tL/94AGX1pbP/yAA",
+        "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//70DAAAAAAASNFUAABAAAAG0gAAAAABAAEQAAEAAAAB/7kEQAAAAMZAKL3yAIAx9wY0v3gQAID96739AACC/cu9/QAAgP3rvf0AAIsgAAAJiWlpbW3+tX///9gAAABjS6gL4P4D+gP/////n///5gABl4yN/7kEQKAAAZ647GMAAAA0Vx5d72AAaKssqP/UACiRZXgf+4ACw22/7kEQNAAASZg1+9pAABkjAsJ72gAY80tL/94AGX1pbP/yAA",
+        "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//70DAAAAAAASNFUAABAAAAG0gAAAAABAAEQAAEAAAAB/7kEQAAAAMZAKL3yAIAx9wY0v3gQAID96739AACC/cu9/QAAgP3rvf0AAIsgAAAJiWlpbW3+tX///9gAAABjS6gL4P4D+gP/////n///5gABl4yN/7kEQKAAAZ647GMAAAA0Vx5d72AAaKssqP/UACiRZXgf+4ACw22/7kEQNAAASZg1+9pAABkjAsJ72gAY80tL/94AGX1pbP/yAA"
+    ];
+
+    let currentAudio = null;
+    let currentBtn = null;
+
+    function playAudio(index, btnElement) {
+        const statusText = document.getElementById('statusText');
+
+        // 如果目前正有語音在播放，先停止並還原按鈕狀態
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+            if (currentBtn) currentBtn.classList.remove('playing');
+        }
+
+        // 如果再次點擊正在播放的按鈕，就直接停止
+        if (currentBtn === btnElement && !currentAudio.paused) {
+            statusText.innerText = "已停止播放";
+            currentBtn = null;
+            return;
+        }
+
+        // 載入與播放點選的 Base64 音訊
+        currentAudio = new Audio(audioSources[index]);
+        currentBtn = btnElement;
+
+        currentBtn.classList.add('playing');
+        statusText.innerText = `正在播放：${btnElement.innerText}`;
+
+        currentAudio.play().catch(e => {
+            console.error("播放失敗:", e);
+            statusText.innerText = "播放失敗，請再試一次";
+        });
+
+        // 播放結束時恢復狀態
+        currentAudio.onended = function() {
+            btnElement.classList.remove('playing');
+            statusText.innerText = "播放完成";
+            currentBtn = null;
+        };
+    }
+</script>
+
+</body>
+</html>
